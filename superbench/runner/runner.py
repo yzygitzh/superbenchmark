@@ -144,6 +144,7 @@ class SuperBenchRunner():
             torch_dist_params = '' if mode.node_num == 1 else \
                 '--nnodes=$NNODES --node_rank=$NODE_RANK --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT '
             mode_command = (
+                f'nsys profile --output /mnt/nvme0n1/ziyyang/nsys-sb --backtrace none --sample none --force-overwrite true --cpuctxsw none --trace cuda,nvtx '
                 f'python3 -m torch.distributed.launch'
                 f' --use_env --no_python --nproc_per_node={mode.proc_num} {torch_dist_params}{exec_command}'
                 f' superbench.benchmarks.{benchmark_name}.parameters.distributed_impl=ddp'
