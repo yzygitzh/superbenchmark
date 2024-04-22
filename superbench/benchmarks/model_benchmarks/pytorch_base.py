@@ -340,3 +340,37 @@ class PytorchBase(ModelBenchmark):
         if self._gpu_available:
             torch.cuda.synchronize()
         return time.time()
+
+    def _benchmark(self):
+        """Wrap super._benchmark with profiler context
+        """
+        ret = None
+
+        from torch.profiler import profile, ProfilerActivity
+        from torch.autograd import DeviceType
+        import json
+        diag_agent_prof = profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True)
+        diag_agent_dump_file_path = '/mnt/nvme0n1/ziyyang/torch-profiler-sb-%d.json' % self._local_rank
+        diag_agent_prof.__enter__()
+
+        ret = super()._benchmark()
+
+        diag_agent_prof.__exit__(None, None, None)
+        diag_agent_events = []
+        for event in diag_agent_prof.events():
+            if event.device_type != DeviceType.CPU:
+                continue
+            diag_agent_event = {
+                'name': event.name,
+                'input_shapes': event.input_shapes,
+                'input_types': event.dtypes,
+                'input_values': event.concrete_inputs,
+            }
+            diag_agent_event['cpu_time'] = event.cpu_time
+            diag_agent_event['gpu_time'] = event.cuda_time
+            diag_agent_event['start_time'] = event.time_range.start
+            diag_agent_events.append(diag_agent_event)
+        with open(diag_agent_dump_file_path, 'w') as f:
+            json.dump(diag_agent_events, f, sort_keys=True)
+
+        return ret
